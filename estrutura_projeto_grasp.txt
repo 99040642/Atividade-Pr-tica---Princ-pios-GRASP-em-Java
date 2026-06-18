@@ -1,0 +1,211 @@
+# Estrutura do Projeto Java (GRASP)
+
+Abaixo está a organização das pastas e arquivos exatos que você deve criar no VS Code para o seu repositório do GitHub/GitLab.
+
+## 📂 Visão Geral da Estrutura de Pastas
+Seu projeto deve ficar com essa estrutura dentro da pasta principal:
+```text
+meu-projeto-grasp/
+│
+├── .gitignore
+├── README.md
+│
+└── src/
+    ├── Main.java
+    │
+    ├── modelo/
+    │   ├── ItemPedido.java
+    │   └── Pedido.java
+    │
+    └── controlador/
+        └── PedidoController.java
+```
+
+---
+
+## 📄 1. Arquivo: src/modelo/ItemPedido.java
+```java
+package modelo;
+
+public class ItemPedido {
+    private String nomeProduto;
+    private double preco;
+    private int quantidade;
+
+    public ItemPedido(String nomeProduto, double preco, int quantidade) {
+        this.nomeProduto = nomeProduto;
+        this.preco = preco;
+        this.quantidade = quantity;
+    }
+
+    public double getSubtotal() {
+        return preco * quantidade;
+    }
+
+    public String getNomeProduto() { 
+        return nomeProduto; 
+    }
+}
+```
+
+---
+
+## 📄 2. Arquivo: src/modelo/Pedido.java
+```java
+package modelo;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/*
+ * JUSTIFICATIVA GRASP: PADRÃO CREATOR (CRIADOR)
+ * * Onde foi aplicado: No método 'adicionarItem' da classe Pedido.
+ * * Por que atende ao princípio: De acordo com o GRASP, uma classe B deve ser responsável por criar
+ * instâncias de uma classe A se B contém, agrega ou usa estritamente A. 
+ * Como o 'Pedido' possui uma lista de 'ItemPedido' e esses itens não fazem sentido existirem de forma isolada sem um pedido,
+ * o próprio Pedido recebe os dados brutos e instancia o objeto ItemPedido internamente.
+ * Isso evita que classes externas precisem conhecer a existência ou a mecânica de construção de ItemPedido, 
+ * melhorando o encapsulamento e a coesão.
+ */
+public class Pedido {
+    private int id;
+    private List<ItemPedido> itens;
+
+    public Pedido(int id) {
+        this.id = id;
+        this.itens = new ArrayList<>();
+    }
+
+    // O método recebe os parâmetros e CRIA o objeto internamente (Creator)
+    public void adicionarItem(String nomeProduto, double preco, int quantidade) {
+        ItemPedido novoItem = new ItemPedido(nomeProduto, preco, quantidade);
+        this.itens.add(novoItem);
+    }
+
+    public double calcularTotal() {
+        return itens.stream().mapToDouble(ItemPedido::getSubtotal).sum();
+    }
+
+    public int getId() { 
+        return id; 
+    }
+    
+    public List<ItemPedido> getItens() { 
+        return itens; 
+    }
+}
+```
+
+---
+
+## 📄 3. Arquivo: src/controlador/PedidoController.java
+```java
+package controlador;
+
+import modelo.Pedido;
+import java.util.HashMap;
+import java.util.Map;
+
+/*
+ * JUSTIFICATIVA GRASP: PADRÃO CONTROLLER (CONTROLADOR)
+ * * Onde foi aplicado: Na classe PedidoController inteira, especificamente nos métodos que 
+ * coordenam o fluxo do sistema (criarNovoPedido, adicionarItemAoPedido).
+ * * Por que atende ao princípio: O GRASP determina que um Controller deve receber os eventos do sistema
+ * (vindos da interface do usuário, CLI ou de uma API externa) e delegar as ações para os objetos de negócio correspondentes.
+ * O controlador não calcula valores diretamente e nem altera atributos diretamente, apenas coordena as ações, garantindo 
+ * que a camada de apresentação não se misture com as regras de negócio do domínio.
+ */
+public class PedidoController {
+    private Map<Integer, Pedido> bancoDeDadosSimulado;
+    private int proximoId;
+
+    public PedidoController() {
+        this.bancoDeDadosSimulado = new HashMap<>();
+        this.proximoId = 1;
+    }
+
+    public int criarNovoPedido() {
+        Pedido pedido = new Pedido(proximoId);
+        bancoDeDadosSimulado.put(proximoId, pedido);
+        int idCriado = proximoId;
+        proximoId++;
+        return idCriado;
+    }
+
+    public void adicionarItemAoPedido(int idPedido, String nome, double preco, int qtd) {
+        Pedido pedido = bancoDeDadosSimulado.get(idPedido);
+        if (pedido != null) {
+            // Delega a criação para a classe Pedido (respeitando o Creator)
+            pedido.adicionarItem(nome, preco, qtd);
+        } else {
+            System.out.println("Erro: Pedido não encontrado.");
+        }
+    }
+
+    public void exibirResumoPedido(int idPedido) {
+        Pedido pedido = bancoDeDadosSimulado.get(idPedido);
+        if (pedido != null) {
+            System.out.println("--- Resumo do Pedido #" + pedido.getId() + " ---");
+            pedido.getItens().forEach(item -> 
+                System.out.println("- " + item.getNomeProduto() + " | Qtd: " + item.getSubtotal() / item.getSubtotal() + " | Subtotal: R$ " + item.getSubtotal())
+            );
+            System.out.println("Total Geral do Pedido: R$ " + pedido.calcularTotal());
+        }
+    }
+}
+```
+
+---
+
+## 📄 4. Arquivo: src/Main.java
+```java
+import controlador.PedidoController;
+
+public class Main {
+    public static void main(String[] args) {
+        // A camada de apresentação (Main) só interage com o Controller externo do sistema
+        PedidoController sistema = new PedidoController();
+
+        // Fluxo de execução simulando as ações do usuário:
+        int idDoPedido = sistema.criarNovoPedido();
+        
+        sistema.adicionarItemAoPedido(idDoPedido, "Teclado Mecânico", 250.00, 1);
+        sistema.adicionarItemAoPedido(idDoPedido, "Mouse Gamer", 120.00, 2);
+
+        // Exibindo o resultado final coordenado pelo controlador
+        sistema.exibirResumoPedido(idDoPedido);
+    }
+}
+```
+
+---
+
+## 📄 5. Arquivo: README.md
+*(Dica: Deixe este arquivo na raiz do seu repositório Git, pois o GitHub/GitLab vai renderizá-lo automaticamente na página inicial do projeto, o que impressiona bastante o professor).*
+
+```markdown
+# Atividade Prática - Princípios GRASP em Java
+
+Este repositório contém a implementação de um sistema simplificado de controle de pedidos comerciais desenvolvido com o objetivo de consolidar a aplicação prática dos padrões de atribuição de responsabilidades do **GRASP (General Responsibility Assignment Software Patterns)**.
+
+## 🛠️ Padrões GRASP Utilizados
+
+1. **Creator (Criador):** - **Onde:** Aplicado no método `adicionarItem` da classe `Pedido`.
+   - **Justificativa:** A classe `Pedido` compõe e agrega objetos do tipo `ItemPedido`. Seguindo as diretrizes do GRASP, a responsabilidade de instanciar `ItemPedido` foi atribuída diretamente a `Pedido`, evitando acoplamento desnecessário de fábricas externas ou da camada de controle com os detalhes internos de construção do item.
+
+2. **Controller (Controlador):**
+   - **Onde:** Centralizado na classe `PedidoController`.
+   - **Justificativa:** Atua como o primeiro ponto de contato que recebe e coordena as operações do sistema originadas pela interface (classe `Main`), isolando a lógica de apresentação das regras e modelos de negócio da aplicação.
+
+## 🚀 Como Executar o Projeto
+
+Certifique-se de ter o JDK instalado em sua máquina. A partir da pasta raiz do projeto (`meu-projeto-grasp`), utilize os comandos:
+
+```bash
+# Compilar os arquivos a partir da pasta src
+javac src/modelo/*.java src/controlador/*.java src/Main.java -d bin
+
+# Executar a aplicação
+java -cp bin Main
+```
+```
